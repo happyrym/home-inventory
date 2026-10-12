@@ -5,11 +5,12 @@ import { toNetwork } from '../lib/ip';
 import { code, leave, refreshIps, retryHousehold } from '../state';
 import { addNetworks } from '../store/household';
 
-const RELAY_HINT = 'iPhone에서 iCloud 비공개 릴레이·VPN·"IP 주소 추적 제한"이 켜져 있으면 집에서도 다른 주소로 보여요. 설정 → Wi-Fi → 집 네트워크(i) → "IP 주소 추적 제한" 끄기, 그리고 iCloud 비공개 릴레이를 끈 뒤 다시 확인하세요.';
+const RELAY_HINT = 'iPhone에서 iCloud 비공개 릴레이·VPN·"IP 주소 추적 제한"이 켜져 있으면 집에서도 다른 주소로 보여요. 설정 → Wi-Fi → 집 네트워크(i) → "IP 주소 추적 제한" 끄기, iCloud 비공개 릴레이 끄기, 그리고 "Wi-Fi 지원"(셀룰러 폴백)도 끈 뒤 다시 확인하세요.';
 
 export function Gate({ state }: { state: Exclude<GateState, { kind: 'allowed' | 'no-code' }> }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const leaveWithConfirm = () => { if (confirm('이 기기에서 가구 코드를 지우고 다른 코드로 들어갈까요?')) void leave(); };
 
   if (state.kind === 'checking') return <main class="page center"><p class="muted">집 네트워크 확인 중…</p></main>;
 
@@ -30,7 +31,7 @@ export function Gate({ state }: { state: Exclude<GateState, { kind: 'allowed' | 
         <p>{msg[state.reason]}</p>
         <div class="row" style="justify-content:center">
           <button onClick={retry}>다시 시도</button>
-          {state.reason === 'household-missing' && <button class="ghost" onClick={leave}>코드 다시 입력</button>}
+          {state.reason === 'household-missing' && <button class="ghost" onClick={leaveWithConfirm}>코드 다시 입력</button>}
         </div>
       </main>
     );
@@ -60,7 +61,7 @@ export function Gate({ state }: { state: Exclude<GateState, { kind: 'allowed' | 
         <button class="ghost" onClick={() => void refreshIps(true)}>다시 확인</button>
       </div>
       <p class="muted" style="text-align:left">{RELAY_HINT}</p>
-      <p><button class="ghost" onClick={leave}>다른 코드로 들어가기</button></p>
+      <p><button class="ghost" onClick={leaveWithConfirm}>다른 코드로 들어가기</button></p>
     </main>
   );
 }

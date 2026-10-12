@@ -41,7 +41,7 @@ export function searchItems(
     const path = pathOf(item.placeId);
     const fields = [item.name, ...item.aliases];
     const fieldBest = Math.max(0, ...fields.map((f) => fieldScore(f, q, qIsChosung)));
-    const score = Math.max(fieldBest * FIELD_WEIGHT, fieldScore(path, q, qIsChosung));
+    const score = Math.max(fieldBest * FIELD_WEIGHT, fieldScore(path.replace(/>/g, ' '), q, qIsChosung));
     if (score > 0) hits.push({ item, path, score });
   }
   return hits

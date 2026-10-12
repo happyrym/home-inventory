@@ -15,7 +15,7 @@ export function PlaceItems({ id }: { id: string }) {
   const list = items.value.filter((i) => i.placeId && subtree.has(i.placeId)).sort((a, b) => b.updatedAt - a.updatedAt);
 
   return (
-    <main class="page">
+    <main class="page has-fab">
       <div class="topbar">
         <button class="ghost" onClick={() => navigate('/places')}>← 공간</button>
         <h2 style="margin:0">{pathOf.value(id)}</h2>

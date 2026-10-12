@@ -3,7 +3,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vitest'
 import { initializeTestEnvironment, type RulesTestContext, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
 import { doc, setDoc, type Firestore } from 'firebase/firestore';
 import { addNetworks, removeNetwork, subscribeHousehold, MAX_NETWORKS } from '../../src/store/household';
-import { saveItem, deleteItem, createPlace, updatePlace, deletePlace, createPlaces, subscribeItems, subscribePlaces, newPlaceId } from '../../src/store/data';
+import { saveItem, moveItem, deleteItem, createPlace, updatePlace, deletePlace, createPlaces, createItems, subscribeItems, subscribePlaces, newPlaceId } from '../../src/store/data';
 import { toNetwork } from '../../src/lib/ip';
 import type { Household, Item, Place } from '../../src/lib/types';
 
@@ -45,11 +45,22 @@ describe('household store', () => {
     h = await onceHousehold(HID, (v) => v!.allowedNetworks!.length === MAX_NETWORKS);
     expect(h!.allowedNetworks!.map((n) => n.addr)).toEqual(['3.3.3.3', '4.4.4.4', '5.5.5.5', '6.6.6.6', '7.7.7.7']);
   });
-  test('removeNetwork', async () => {
+  test('removeNetwork refuses to drop the last network', async () => {
     await addNetworks(db, HID, [toNetwork('1.1.1.1', 'a', 1), toNetwork('2.2.2.2', 'b', 2)]);
     await removeNetwork(db, HID, '1.1.1.1');
     const h = await onceHousehold(HID, (v) => v!.allowedNetworks!.length === 1);
     expect(h!.allowedNetworks![0].addr).toBe('2.2.2.2');
+    await expect(removeNetwork(db, HID, '2.2.2.2')).rejects.toThrow('마지막');
+  });
+  test('malformed network entries written elsewhere are ignored', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(fs(ctx), `households/${HID}`), { name: '집', allowedNetworks: [null, { addr: 1 }, { addr: '1.1.1.1', kind: 'v4', label: 'a', addedAt: 1 }], createdAt: 1 });
+    });
+    const h = await onceHousehold(HID, (v) => (v?.allowedNetworks?.length ?? 0) > 0);
+    expect(h!.allowedNetworks).toEqual([{ addr: '1.1.1.1', kind: 'v4', label: 'a', addedAt: 1 }]);
+    await addNetworks(db, HID, [toNetwork('2.2.2.2', 'b', 2)]);
+    const h2 = await onceHousehold(HID, (v) => v!.allowedNetworks!.length === 2);
+    expect(h2!.allowedNetworks!.map((n) => n.addr)).toEqual(['1.1.1.1', '2.2.2.2']);
   });
 });
 
@@ -62,6 +73,9 @@ describe('data store', () => {
     await saveItem(db, HID, { ...items[0], name: '충전기2' }, id);
     items = await once<Item[]>((cb) => subscribeItems(db, HID, cb), (v) => v[0]?.name === '충전기2');
     expect(items[0].id).toBe(id);
+    await moveItem(db, HID, id, 'p9');
+    items = await once<Item[]>((cb) => subscribeItems(db, HID, cb), (v) => v[0]?.placeId === 'p9');
+    expect(items[0].name).toBe('충전기2');
     await deleteItem(db, HID, id);
     items = await once<Item[]>((cb) => subscribeItems(db, HID, cb), (v) => v.length === 0);
     expect(items).toEqual([]);
@@ -78,5 +92,16 @@ describe('data store', () => {
     await deletePlace(db, HID, batch[0].id);
     places = await once<Place[]>((cb) => subscribePlaces(db, HID, cb), (v) => v.length === 3);
     expect(places.find((p) => p.id === batch[0].id)).toBeUndefined();
+  });
+  test('createItems preserves ids (backup restore is idempotent) and malformed docs are normalized', async () => {
+    const restored: Item[] = [{ id: 'keep1', name: '가위', aliases: ['scissors'], placeId: null, qty: 2, note: '', updatedAt: 5 }];
+    await createItems(db, HID, restored);
+    await createItems(db, HID, restored);
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(fs(ctx), `households/${HID}/items/broken`), { name: 7 });
+    });
+    const items = await once<Item[]>((cb) => subscribeItems(db, HID, cb), (v) => v.length === 2);
+    expect(items.find((i) => i.id === 'keep1')).toMatchObject({ name: '가위', qty: 2 });
+    expect(items.find((i) => i.id === 'broken')).toMatchObject({ name: '', aliases: [], qty: 1 });
   });
 });

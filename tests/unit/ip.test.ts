@@ -56,6 +56,20 @@ describe('fetchPublicIps', () => {
     const f = mock(() => new Promise<Response>(() => {}));
     await expect(fetchPublicIps(f, 10)).rejects.toThrow('ip-lookup-failed');
   });
+  test('rejects non-ok, non-ip or empty responses', async () => {
+    const html = () => Promise.resolve(new Response('<html>error</html>', { status: 502 }));
+    const f = mock((url) => (url.includes('icanhazip') ? html() : url.includes('api64') ? json('') : Promise.resolve(new Response('{}'))));
+    await expect(fetchPublicIps(f)).rejects.toThrow('ip-lookup-failed');
+    const g = mock((url) => (url.includes('icanhazip') ? text('not an ip') : json('1.2.3.4')));
+    expect(await fetchPublicIps(g)).toEqual(['1.2.3.4']);
+  });
+  test('incremental callback fires per unique ip', async () => {
+    const seen: string[] = [];
+    const f = mock((url) => (url.includes('api64') ? json('2001:db8::1') : json('1.2.3.4')));
+    const { fetchPublicIpsIncremental } = await import('../../src/lib/ip');
+    expect(await fetchPublicIpsIncremental((ip) => seen.push(ip), f)).toEqual(['1.2.3.4', '2001:db8::1']);
+    expect(seen).toEqual(['1.2.3.4', '2001:db8::1']);
+  });
 });
 
 describe('ip cache', () => {

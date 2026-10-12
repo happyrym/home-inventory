@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { afterAll, beforeAll, beforeEach, describe, test } from 'vitest';
 import { assertFails, assertSucceeds, initializeTestEnvironment, type RulesTestContext, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
-import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, type Firestore } from 'firebase/firestore';
+import { collection, collectionGroup, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, type Firestore } from 'firebase/firestore';
 
 const HID = 'a'.repeat(26);
 const OTHER = 'b'.repeat(26);
@@ -43,6 +43,12 @@ describe('households/{hid}', () => {
     await assertFails(updateDoc(ref, { allowedNetworks: 'nope' }));
     await assertFails(updateDoc(ref, { allowedNetworks: ['1', '2', '3', '4', '5', '6'].map(net) }));
   });
+  test('name must be a short string', async () => {
+    const ref = doc(anon(), `households/${HID}`);
+    await assertFails(updateDoc(ref, { name: 42 }));
+    await assertFails(updateDoc(ref, { name: 'x'.repeat(51) }));
+    await assertSucceeds(updateDoc(ref, { name: 'x'.repeat(50) }));
+  });
 });
 
 describe('subcollections', () => {
@@ -57,4 +63,5 @@ describe('subcollections', () => {
     await assertFails(getDocs(collection(anon(), `households/${OTHER}/items`)));
   });
   test('other top-level collections are closed', () => assertFails(setDoc(doc(anon(), 'junk/x'), { a: 1 })));
+  test('collection group query across households is denied', () => assertFails(getDocs(collectionGroup(anon(), 'items'))));
 });

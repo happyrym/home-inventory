@@ -5,6 +5,9 @@ service cloud.firestore {
     function householdExists(hid) {
       return exists(/databases/$(database)/documents/households/$(hid));
     }
+    function validName(data) {
+      return !('name' in data) || (data.name is string && data.name.size() <= 50);
+    }
 
     match /households/{hid} {
       allow get: if signedIn();
@@ -14,7 +17,8 @@ service cloud.firestore {
       allow update: if signedIn()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['allowedNetworks', 'name'])
         && request.resource.data.allowedNetworks is list
-        && request.resource.data.allowedNetworks.size() <= 5;
+        && request.resource.data.allowedNetworks.size() <= 5
+        && validName(request.resource.data);
 
       // 하위 컬렉션을 명시한다. {document=**}는 v2에서 0개 이상 세그먼트에 매칭돼 가구 문서 자체까지 열어
       // list 금지·필드 제한을 무력화한다. householdExists는 없는 가구 경로에 쓰는 쿼터 소진을 막는다.

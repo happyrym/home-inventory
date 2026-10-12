@@ -13,8 +13,9 @@ export function matchRoute(pattern: string, path: string): Record<string, string
   if (p.length !== s.length) return null;
   const out: Record<string, string> = {};
   for (let i = 0; i < p.length; i++) {
-    if (p[i].startsWith(':')) out[p[i].slice(1)] = decodeURIComponent(s[i]);
-    else if (p[i] !== s[i]) return null;
+    if (p[i].startsWith(':')) {
+      try { out[p[i].slice(1)] = decodeURIComponent(s[i]); } catch { return null; }
+    } else if (p[i] !== s[i]) return null;
   }
   return out;
 }
@@ -31,6 +32,12 @@ export function navigate(to: string): void {
 export function replaceHash(to: string): void {
   history.replaceState(null, '', `${location.pathname}${location.search}#${to.replace(/^#/, '')}`);
   route.value = parseHash(location.hash);
+}
+
+// 저장·삭제 뒤 홈을 push하면 Android 뒤로가기가 방금 닫은 폼으로 되돌아간다. 진입 화면으로 back한다.
+export function goBack(): void {
+  if (history.length > 1) history.back();
+  else replaceHash('/');
 }
 
 export function useRoute(): Route {

@@ -45,6 +45,9 @@ describe('searchItems', () => {
     expect(mixed[0].item.id).toBe('e');
   });
 
+  test('path search ignores the " > " separators', () => {
+    expect(searchItems(items, pathOf, 'tv장 왼쪽').map((h) => h.item.id)).toEqual(['b', 'a']);
+  });
   test('ignores whitespace and case', () => {
     expect(searchItems(items, pathOf, 'usb케이블').map((h) => h.item.id)).toEqual(['b']);
   });

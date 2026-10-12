@@ -6,7 +6,7 @@ const NOW = 1_000_000_000;
 const base: GateInput = {
   code: 'c'.repeat(26), uid: 'u1', authFailed: false,
   household: { name: '집', allowedNetworks: [toNetwork('1.2.3.4', '집', 0)], createdAt: 0 }, householdFailed: false,
-  ips: ['1.2.3.4'], ipFailed: false, lastAllowedAt: null, now: NOW,
+  ips: ['1.2.3.4'], ipsComplete: true, ipFailed: false, lastAllowedAt: null, now: NOW,
 };
 
 describe('decideGate', () => {
@@ -35,6 +35,12 @@ describe('decideGate', () => {
   test('allowed / blocked by match', () => {
     expect(decideGate(base)).toEqual({ kind: 'allowed' });
     expect(decideGate({ ...base, ips: ['5.6.7.8'] })).toEqual({ kind: 'blocked', ips: ['5.6.7.8'], firstRun: false });
+  });
+  test('partial ip results: match allows early, mismatch waits, first run waits', () => {
+    expect(decideGate({ ...base, ips: ['1.2.3.4'], ipsComplete: false })).toEqual({ kind: 'allowed' });
+    expect(decideGate({ ...base, ips: ['5.6.7.8'], ipsComplete: false })).toEqual({ kind: 'checking' });
+    expect(decideGate({ ...base, ips: null, ipsComplete: false })).toEqual({ kind: 'checking' });
+    expect(decideGate({ ...base, household: { ...base.household!, allowedNetworks: [] }, ipsComplete: false })).toEqual({ kind: 'checking' });
   });
   test('household-missing wins over ip failure', () => {
     expect(decideGate({ ...base, household: null, ips: null, ipFailed: true })).toEqual({ kind: 'error', reason: 'household-missing' });

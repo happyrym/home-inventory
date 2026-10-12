@@ -31,6 +31,11 @@ export function v6Prefix64(ip: string): string {
   return expandV6(ip).slice(0, 4).join(':');
 }
 
+export function isIp(s: string): boolean {
+  if (isV4(s)) return true;
+  try { expandV6(s); return true; } catch { return false; }
+}
+
 export function toNetwork(ip: string, label: string, now: number): AllowedNetwork {
   return isV4(ip)
     ? { addr: ip, kind: 'v4', label, addedAt: now }
@@ -57,19 +62,29 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   });
 }
 
+// 제공자가 5xx HTML이나 빈 JSON을 돌려주면 그 문자열이 '주소'로 들어와 등록 전체가 깨지므로 형식까지 본다.
 async function readIp(res: Response, parse: 'json' | 'text'): Promise<string> {
-  if (parse === 'json') return String(((await res.json()) as { ip: unknown }).ip);
-  return (await res.text()).trim();
+  if (!res.ok) throw new Error(`http ${res.status}`);
+  const raw = parse === 'json' ? (await res.json() as { ip?: unknown }).ip : (await res.text()).trim();
+  if (typeof raw !== 'string' || !isIp(raw)) throw new Error('bad ip response');
+  return raw;
 }
 
-export async function fetchPublicIps(fetchFn: typeof fetch = fetch, timeoutMs = 5000): Promise<string[]> {
-  const results = await Promise.allSettled(
-    IP_SOURCES.map((s) => withTimeout(fetchFn(s.url).then((r) => readIp(r, s.parse)), timeoutMs)),
-  );
-  const ips = [...new Set(results.flatMap((r) => (r.status === 'fulfilled' && r.value ? [r.value] : [])))];
-  if (ips.length === 0) throw new Error('ip-lookup-failed');
-  return ips;
+// 결과가 하나 올 때마다 onIp로 알린다. 가장 느린 제공자(최대 timeoutMs)를 기다리지 않고
+// 첫 일치만으로 통과시킬 수 있게 하기 위함. 차단 판정은 호출자가 전부 끝난 뒤에만 내린다.
+export async function fetchPublicIpsIncremental(
+  onIp: (ip: string) => void, fetchFn: typeof fetch = fetch, timeoutMs = 5000,
+): Promise<string[]> {
+  const got: string[] = [];
+  await Promise.allSettled(IP_SOURCES.map((s) =>
+    withTimeout(fetchFn(s.url, { signal: AbortSignal.timeout(timeoutMs) }).then((r) => readIp(r, s.parse)), timeoutMs)
+      .then((ip) => { if (!got.includes(ip)) { got.push(ip); onIp(ip); } })));
+  if (got.length === 0) throw new Error('ip-lookup-failed');
+  return got;
 }
+
+export const fetchPublicIps = (fetchFn: typeof fetch = fetch, timeoutMs = 5000): Promise<string[]> =>
+  fetchPublicIpsIncremental(() => {}, fetchFn, timeoutMs);
 
 export function getCachedIps(storage: Storage, now: number): string[] | null {
   try {
