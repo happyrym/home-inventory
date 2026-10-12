@@ -1,0 +1,49 @@
+{
+  "name": "home-inventory",
+  "version": "1.0.0",
+  "description": "어디뒀지 — 집 물건 위치 검색 PWA",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "dev:emu": "VITE_USE_EMULATOR=1 vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run --config vitest.config.ts",
+    "test:watch": "vitest --config vitest.config.ts",
+    "test:rules": "sh scripts/with-java21.sh firebase emulators:exec --only firestore,auth --project demo-home-inventory \"vitest run --config vitest.rules.config.ts\"",
+    "emu": "sh scripts/with-java21.sh firebase emulators:start --only firestore,auth --project demo-home-inventory",
+    "emu:seed": "node scripts/seed-emulator.mjs",
+    "gen-code": "node scripts/gen-code.mjs",
+    "seed:check": "node scripts/check-seed.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/happyrym/home-inventory.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/happyrym/home-inventory/issues"
+  },
+  "homepage": "https://github.com/happyrym/home-inventory#readme",
+  "dependencies": {
+    "@preact/signals": "^2.11.3",
+    "firebase": "^13.0.0",
+    "preact": "^11.0.1",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^6.0.0",
+    "@preact/preset-vite": "^2.10.6",
+    "@types/node": "^26.6.5",
+    "@types/qrcode": "^1.5.6",
+    "firebase-tools": "^15.33.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4",
+    "vite-plugin-pwa": "^2.0.0",
+    "vitest": "^5.0.3"
+  },
+  "private": true
+}
