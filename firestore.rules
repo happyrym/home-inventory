@@ -1,0 +1,22 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function householdExists(hid) {
+      return exists(/databases/$(database)/documents/households/$(hid));
+    }
+
+    match /households/{hid} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create, delete: if false;
+      allow update: if signedIn()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['allowedNetworks', 'name'])
+        && request.resource.data.allowedNetworks is list
+        && request.resource.data.allowedNetworks.size() <= 5;
+
+      match /places/{placeId} { allow read, write: if signedIn() && householdExists(hid); }
+      match /items/{itemId}   { allow read, write: if signedIn() && householdExists(hid); }
+    }
+  }
+}
