@@ -2,6 +2,9 @@ import { deleteDoc, doc, onSnapshot, setDoc, updateDoc, writeBatch, type Firesto
 import { itemsCol, placesCol } from '../refs';
 import type { Item, Place } from '../lib/types';
 
+// 쓰기 함수들은 Promise를 돌려주지만 화면은 await하지 않는다. Firestore 쓰기는 서버 확인까지
+// resolve되지 않아 오프라인이면 무한 대기하고, 로컬 캐시에는 즉시 반영되기 때문.
+// updatedAt을 serverTimestamp가 아닌 숫자로 쓰는 이유: 오프라인 스냅샷에서 null이 되어 정렬이 깨진다.
 export type ItemInput = Omit<Item, 'id' | 'updatedAt'>;
 const BATCH_LIMIT = 500;
 

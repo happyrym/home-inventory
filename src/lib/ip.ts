@@ -1,6 +1,7 @@
 import type { AllowedNetwork } from './types';
 
 const V4_RE = /^(\d{1,3}\.){3}\d{1,3}$/;
+// 제공자를 둘로 나눈 이유: ipify 단독 장애가 곧 '집에서도 전면 차단'이 되기 때문.
 const IP_SOURCES: { url: string; parse: 'json' | 'text' }[] = [
   { url: 'https://api.ipify.org?format=json', parse: 'json' },
   { url: 'https://api64.ipify.org?format=json', parse: 'json' },
@@ -24,6 +25,8 @@ export function expandV6(ip: string): string[] {
   return parts.map((p) => p.toLowerCase().replace(/^0+(?=.)/, ''));
 }
 
+// v6는 /64 프리픽스로만 비교한다. 폰은 프라이버시 확장으로 하위 64비트를 수시로 바꾸지만
+// 공유기가 받은 프리픽스는 그대로이기 때문.
 export function v6Prefix64(ip: string): string {
   return expandV6(ip).slice(0, 4).join(':');
 }

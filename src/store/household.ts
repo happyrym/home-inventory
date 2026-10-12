@@ -10,6 +10,8 @@ export function subscribeHousehold(
   return onSnapshot(householdRef(db, code), (snap) => cb(snap.exists() ? (snap.data() as Household) : null), onError);
 }
 
+// 트랜잭션으로 머지하는 이유: 두 폰이 동시에 등록하면 마지막 쓰기가 상대 것을 덮는다.
+// slice(-MAX_NETWORKS)는 규칙의 size() <= 5와 맞춰야 한다.
 export async function addNetworks(db: Firestore, code: string, nets: AllowedNetwork[]): Promise<void> {
   const ref = householdRef(db, code);
   await runTransaction(db, async (tx) => {

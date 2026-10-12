@@ -21,6 +21,8 @@ export const places = signal<Place[]>([]);
 export const items = signal<Item[]>([]);
 export const dataReady = signal(false);
 const retryTick = signal(0);
+// gate가 lastAllowedAt에 의존하므로 allowed 때마다 쓰면 effect가 자기 자신을 재트리거한다.
+// peek()로 추적을 피하고 1분 간격으로만 기록한다.
 const LAST_ALLOWED_WRITE_GAP_MS = 60 * 1000;
 
 export const gate = computed(() => decideGate({
@@ -36,6 +38,7 @@ let unsubHousehold: (() => void) | null = null;
 let unsubData: (() => void)[] = [];
 let booted = false;
 
+// 세션 캐시는 새로고침 비용을 줄이는 용도. force(복귀·온라인·수동)는 캐시를 건너뛴다.
 export async function refreshIps(force = false): Promise<void> {
   now.value = Date.now();
   const cached = force ? null : getCachedIps(sessionStorage, now.value);
@@ -78,6 +81,8 @@ export function boot(): void {
   if (booted) return;
   booted = true;
 
+  // 구독은 uid가 생긴 뒤에만 건다. 영속 세션이 없는 새 기기에서 먼저 listen하면 permission-denied가
+  // 떨어지고, 그걸 '문서 없음'으로 오판해 초대 링크 첫 입장이 실패했다.
   effect(() => {
     const c = code.value; const u = uid.value; void retryTick.value;
     unsubHousehold?.();
@@ -103,12 +108,15 @@ export function boot(): void {
 
   ensureAnonAuth(auth).then((u) => { uid.value = u; }, () => { authFailed.value = true; });
   void refreshIps();
+  // 집에서 연 앱을 들고 나가도 리로드 없이는 게이트가 안 바뀌므로, 복귀·온라인 전환 때 캐시를 무시하고 다시 본다.
   addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') void refreshIps(true); });
   addEventListener('online', () => void refreshIps(true));
 }
 
+// code를 먼저 지워야 한다. lastAllowedAt을 먼저 null로 만들면 gate가 아직 allowed인 채 재계산되어
+// effect가 통과 시각을 다시 써 버린다.
 export function leave(): void {
+  code.value = null;
   clearCode();
   lastAllowedAt.value = null;
-  code.value = null;
 }

@@ -22,6 +22,9 @@ export interface GateInput {
   now: number;
 }
 
+// 판정 우선순위: 코드 없음 > 인증 실패 > 구독 실패 > 로딩 > 문서 없음 > IP 조회 실패 > 대조.
+// '문서 없음'을 IP 실패보다 앞에 두는 이유: 코드 오타를 네트워크 문제로 오해하지 않게 하려고.
+// IP 조회 실패는 보통 오프라인이므로, 최근 24h 안에 집에서 통과한 기록이 있으면 캐시 검색을 허용한다.
 export function decideGate(input: GateInput): GateState {
   if (!input.code) return { kind: 'no-code' };
   if (input.authFailed) return { kind: 'error', reason: 'auth-failed' };

@@ -21,6 +21,8 @@ export function getLastAllowedAt(): number | null {
 }
 export const setLastAllowedAt = (ts: number) => write(LAST_ALLOWED_KEY, String(ts));
 
+// authStateReady()를 기다리지 않으면 영속 세션이 복원되기 전에 signInAnonymously가 불려
+// 실행마다 새 익명 계정이 생긴다.
 export async function ensureAnonAuth(auth: Auth): Promise<string> {
   await auth.authStateReady();
   if (auth.currentUser) return auth.currentUser.uid;
