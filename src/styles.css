@@ -4,6 +4,7 @@
 html, body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.4 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; }
 .page { max-width: 640px; margin: 0 auto; padding: 16px 16px calc(16px + env(safe-area-inset-bottom)); }
 .topbar { position: sticky; top: 0; background: var(--bg); padding: 12px 0; display: flex; gap: 8px; align-items: center; z-index: 1; }
+.topbar button { white-space: nowrap; flex-shrink: 0; }
 input, select, textarea, button { font: inherit; color: inherit; }
 input[type=text], input[type=search], input[type=number], textarea, select { width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
 button { padding: 12px 16px; border: 0; border-radius: 10px; background: var(--accent); color: #fff; }
